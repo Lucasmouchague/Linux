@@ -5,7 +5,7 @@ url=$1
 convert="youtube-dl -x $url"
 	if [ -z $1 ] 
 	then
-		echo -e "\e[5m\e[91mTa pas mis d'URL frÃ¨re\e[25m\e[0m"
+		echo -e "\e[5m\e[91mTa pas mis d'URL frÃƒÂ¨re\e[25m\e[0m"
 		exit 0
 	else
 		echo -e "\e[93m[?]Checking folder..."
@@ -33,35 +33,30 @@ directory()
 		echo -e "\e[92m[+] youtube-folder created\e[0m"
 		cd "$HOME/Music/youtube-download/"
 	
-	elif [[ ! -d "$HOME/Music/youtube-download/"   &&  -d "$HOME/Music/" ]] ;
+	elif [[ ! -d "$HOME/Musique/youtube-download/"   &&  -d "$HOME/Musique/" ]] 
 	then
-		echo -e "\e[92m[!] Music folder already exist\e[0m"
+		echo -e "\e[92m[!] Musique folder already exist\e[0m"
 		echo -e "\e[92m[+] Creating youtube-download folder\e[0m"
- 		mkdir "$HOME/Music/youtube-download/"
+ 		mkdir "$HOME/Musique/youtube-download/"
+		echo -e "\e[92m[+] youtube-download folder created\e[0m"
+		cd "$HOME/Musique/youtube-download/"
+
+	elif [[ -d "$HOME/Music/"  && ! -d "$HOME/Music/youtube-download/" ]] ;
+	then
+		echo -e "\e[92m[!] Music folder already exist!\e[0m"
+		echo -e "\e[92m[+] Creating youtube-download folder\e[0m"
+		mkdir "$HOME/Music/youtube-download/"
 		echo -e "\e[92m[+] youtube-download folder created\e[0m"
 		cd "$HOME/Music/youtube-download/"
 
-	elif [[ -d "$HOME/Musique/youtube-download/"  && ! -d "$HOME/Music/" ]] ;
-	then
-		echo -e "\e[92m[!] Musique folder already exist!\e[0m"
-		echo -e "\e[92m[+] Creating youtube-download folder\e[0m"
-		mkdir "$HOME/Musique/youtube-download/"
-		echo -e "\e[92m[+] youtube-download folder created\e[0m"
-		cd "$HOME/Musique/youtube-download/"
-	
-	elif [[ -d "$HOME/Music/"  &&  -d "$HOME/Musique/" ]] ;
-	then
-		echo -e "\e[92m[+] Creating youtube-download folder into Music folder\e[0m"
-		mkdir "$HOME/Music/youtube-download/"
-		echo -e "\e[92m[+] youtube-download folder created\e[0m"
-		cd "$HOME/Music/youtube-download"
-
 	elif [ -d "$HOME/Music/youtube-download" ] ;
-	then			
+	then
+		echo -e "\e[92m[!] Path to download already exist\e[0m"			
 	       	cd "$HOME/Music/youtube-download"
 
 	elif [ -d "$HOME/Musique/youtube-download" ] ;
 	then
+		echo -e "\e[92m[!] Path to download already exist\e[0m"
 		cd "$HOME/Musique/youtube-download"
 
 	fi
