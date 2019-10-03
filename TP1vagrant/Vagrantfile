@@ -1,0 +1,51 @@
+$script = <<-SCRIPT
+echo "[!] Mise a jour des dépots"
+sudo apt update
+echo "[!] Installation des dépendences"
+sudo apt-get -y install php php-curl php-apcu php-fpm php-bcmath php-gd php-intl php-pear php-imap php-memcache libapache2-mod-php php-pspell php-recode php-tidy php-xmlrpc php-mbstring php-gettext php-gmp php-json php-xml php-common
+sudo apt-get install wget apache2
+sudo a2enmod proxy_fcgi setenvif
+sudo systemctl restart apache2
+echo "[!] Installation de Dokuwiki"
+wget https://github.com/splitbrain/dokuwiki/archive/master.zip
+sudo apt install unzip
+sudo unzip master.zip
+sudo rm /var/www/html/index.html
+sudo mv dokuwiki-master/* /var/www/html/
+sudo chown -R www-data:www-data /var/www/html/
+sudo systemctl enable apache2
+sudo systemctl restart apache2
+sudo apt install rsync
+echo "[!] Le Dokuwiki est pret"
+echo "[!] Mise en place des clé RSA"
+sudo chmod 700 /home/vagrant/.ssh
+sudo chmod 644 /home/vagrant/.ssh/authorized_keys
+sudo chmod 644 /home/vagrant/.ssh/id_rsa.pub
+sudo chmod 600 /home/vagrant/.ssh/id_rsa
+sudo chown -R vagrant:vagrant /home/vagrant/.ssh
+SCRIPT
+
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "debian/stretch64"
+  config.vm.provision "file", source: "id_rsa.pub", destination: "~/.ssh/authorized_keys"
+  config.vm.provision "file", source: "id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
+  config.vm.provision "file", source: "id_rsa", destination: "~/.ssh/id_rsa"
+  config.vm.define "doku" do |doku|
+    doku.vm.box_check_update = false
+    doku.vm.network "private_network", ip: "192.168.56.3"
+    doku.vm.network "forwarded_port", guest: 80, host: 8080
+    doku.vm.hostname = "doku"
+    doku.vm.provision "shell", inline: $script
+    doku.vm.provision "shell", inline: <<-SCRIPT 
+    	echo "/5 * * * * rsync --partial --progress --rsh=ssh /var/www/html/data vagrant@192.168.56.10:/var/www/html/"
+    SCRIPT
+  end
+  config.vm.define "backup" do |backup|
+    backup.vm.box_check_update = false
+    backup.vm.network "private_network", ip: "192.168.56.10"
+    backup.vm.network "forwarded_port", guest: 80, host: 8181
+    backup.vm.hostname = "backup"
+    backup.vm.provision "shell", inline: $script
+end
+end
