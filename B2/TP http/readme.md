@@ -1,4 +1,4 @@
-#TP http
+# TP http
 Download this repository and go into it.
 ## Disclaimer 
 Sorry NGINX reverse proxy doesn't work properly with dokuwiki and css and sorry i don't have so much time to spend on this problem. So you have a ugly dokuwiki but the reverse proxy works.
