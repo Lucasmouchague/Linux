@@ -1,0 +1,103 @@
+$script = <<-SCRIPT
+mkdir /opt/src
+wget -q -O /opt/src/dokuwiki-stable.tgz https://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz
+apt install -y -qq apache2 libapache2-mod-php7.0 php7.0-mbstring
+tar zxf /opt/src/dokuwiki-stable.tgz -C /var/www/html/
+mkdir /var/www/html/dokuwiki
+mv /var/www/html/dokuwiki-2018-04-22b/* /var/www/html/dokuwiki 
+sudo useradd -m -G www-data wiki
+chown -R vagrant:www-data /var/www/html/dokuwiki
+chmod -R g+w /var/www/html/dokuwiki
+chown -R vagrant:www-data /var/www/html/dokuwiki/data/pages
+chmod -R g+w /var/www/html/dokuwiki/data/pages
+systemctl restart apache2
+rm /var/www/html/dokuwiki/install.php
+SCRIPT
+
+$install = <<-SCRIPT
+sudo mv /home/vagrant/local.php /var/www/html/dokuwiki/conf/
+sudo mv /home/vagrant/plugins.local.php /var/www/html/dokuwiki/conf/
+sudo mv /home/vagrant/users.auth.php /var/www/html/dokuwiki/conf/
+sudo mv /home/vagrant/acl.auth.php /var/www/html/dokuwiki/conf/
+chmod 600 /home/vagrant/id_rsa_wiki
+chmod 600 /home/vagrant/id_rsa_wiki.pub
+chmod 755 /home/vagrant/
+cat /home/vagrant/id_rsa_wiki >> /home/vagrant/.ssh/authorized_keys
+cat /home/vagrant/id_rsa_wiki.pub >> /home/vagrant/.ssh/authorized_keys
+sudo rm /etc/apache2/sites-available/000-default.conf
+sudo mv /home/vagrant/000-default.conf /etc/apache2/sites-available/
+sudo mv /home/vagrant/index.html /var/www/html/
+SCRIPT
+
+$master = <<-SCRIPT
+sudo sed -i -e 's/#ServerName www.example.com/ServerName server1/' /etc/apache2/sites-available/000-default.conf
+sudo service apache2 reload
+echo "*/5 * * * * rsync --progress -avz -e 'ssh -o StrictHostKeyChecking=no -i /home/vagrant/id_rsa_wiki' /var/www/html/dokuwiki/data/pages/ vagrant@192.168.56.10:/var/www/html/dokuwiki/data/pages/" | sudo -u vagrant crontab
+sudo service cron restart
+SCRIPT
+
+$backup = <<-SCRIPT
+sudo sed -i -e 's/#ServerName www.example.com/ServerName server2/' /etc/apache2/sites-available/000-default.conf
+sudo service apache2 reload
+SCRIPT
+
+$lbinstall = <<-SCRIPT
+apt update
+apt install -y nginx php-fpm
+sudo rm /etc/nginx/sites-available/default
+sudo mv /home/vagrant/proxy.conf /etc/nginx/sites-available/proxy.conf
+sudo ln -s /etc/nginx/sites-available/proxy.conf /etc/nginx/sites-enabled/proxy.conf
+sudo echo "192.168.56.3 server1" >> /etc/hosts
+sudo echo "192.168.56.10 server2" >> /etc/hosts
+sudo service nginx reload
+SCRIPT
+
+Vagrant.configure(2) do |config|
+	config.vm.box = "debian/stretch64"
+	config.vm.define "master" do |master|
+		master.vm.box_check_update = false
+		master.vm.network "private_network", ip: "192.168.56.3"
+		master.vm.network "forwarded_port", guest: 80, host: 8080
+		master.vm.hostname = "master"
+		master.vm.provision "shell", inline: $script
+		master.vm.provision "file", source: "id_rsa_wiki", destination: "/home/vagrant/id_rsa_wiki"
+		master.vm.provision "file", source: "id_rsa_wiki.pub", destination: "/home/vagrant/id_rsa_wiki.pub"
+		master.vm.provision "file", source: "local.php", destination: "/home/vagrant/local.php"
+		master.vm.provision "file", source: "plugins.local.php", destination: "/home/vagrant/plugins.local.php"
+		master.vm.provision "file", source: "users.auth.php", destination: "/home/vagrant/users.auth.php"
+		master.vm.provision "file", source: "acl.auth.php", destination: "/home/vagrant/acl.auth.php"
+		master.vm.provision "file", source: "000-default.conf", destination: "/home/vagrant/000-default.conf"
+		master.vm.provision "file", source: "index.html", destination: "/home/vagrant/index.html"
+		master.vm.provision "shell", inline: $install
+		master.vm.provision "shell", inline: $master
+	end
+	
+	config.vm.define "backup" do |backup|
+		backup.vm.box_check_update = false
+		backup.vm.network "private_network", ip: "192.168.56.10"
+		backup.vm.network "forwarded_port", guest: 80, host: 8181
+		backup.vm.hostname = "backup"
+		backup.vm.provision "shell", inline: $script
+                backup.vm.provision "file", source: "id_rsa_wiki", destination: "/home/vagrant/id_rsa_wiki"
+                backup.vm.provision "file", source: "id_rsa_wiki.pub", destination: "/home/vagrant/id_rsa_wiki.pub"
+                backup.vm.provision "file", source: "local.php", destination: "/home/vagrant/local.php"
+                backup.vm.provision "file", source: "plugins.local.php", destination: "/home/vagrant/plugins.local.php"
+                backup.vm.provision "file", source: "users.auth.php", destination: "/home/vagrant/users.auth.php"
+                backup.vm.provision "file", source: "acl.auth.php", destination: "/home/vagrant/acl.auth.php"
+		backup.vm.provision "file", source: "000-default.conf", destination: "/home/vagrant/000-default.conf"
+		backup.vm.provision "file", source: "index.html", destination: "/home/vagrant/index.html"
+                backup.vm.provision "shell", inline: $install
+		backup.vm.provision "shell", inline: $backup
+
+	end
+	config.vm.define "lb" do |lb|
+		lb.vm.box_check_update = false
+		lb.vm.network "private_network", ip: "192.168.56.5"
+		lb.vm.network "forwarded_port", guest: 80, host: 8282
+		lb.vm.hostname = "loadbalance"
+                lb.vm.provision "file", source: "proxy.conf", destination: "/home/vagrant/proxy.conf"
+		lb.vm.provision "shell", inline: $lbinstall
+
+
+	end
+end
