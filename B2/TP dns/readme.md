@@ -126,6 +126,7 @@ local-address=127.0.0.1,192.168.33.21
 En cherchant l'adresse de réseau dans le fichier de configuration on vois qu'il autorise le pdns a communiquer sur le réseau 192.168.33.0/24 
 
 ### 7.
+Le service mysql est sécurisé car il n'écoute que sur la boucle local `127.0.0.1`.
 ## Actions
 ### 1.
 J'accede a l'interface graphique de chacun des deux serveurs authoritatif avec leurs adresses respective sur le réseau `192.168.33.0/24`
